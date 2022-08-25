@@ -1,0 +1,200 @@
+run:
+  concurrency: 4
+  timeout: 2m
+  issues-exit-code: 1
+  tests: true
+  build-tags:
+  skip-dirs:
+  skip-files:
+  modules-download-mode: readonly
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  dogsled:
+    max-blank-identifiers: 2
+
+  dupl:
+    threshold: 100
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude:
+
+  exhaustive:
+    check-generated: false
+    default-signifies-exhaustive: false
+
+  funlen:
+    lines: 60
+    statements: 40
+
+  gci:
+    sections:
+      - standard # Captures all standard packages if they do not match another section.
+      - default # Contains all imports that could not be matched to another section type.
+      - newLine # Prints an empty line
+      - prefix(gitlab.com/pjrpc/pjrpc) # Groups all imports with the specified Prefix.
+
+  gocognit:
+    min-complexity: 15
+
+  gocyclo:
+    min-complexity: 15
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  gocritic:
+    enabled-checks:
+    disabled-checks:
+      - ioutilDeprecated
+    enabled-tags:
+      - performance
+      - diagnostic
+      - style
+      - experimental
+      - opinionated
+    disabled-tags:
+    settings:
+
+  nestif:
+    min-complexity: 4
+
+  godot:
+    check-all: true
+
+  godox:
+    keywords:
+      - OPTIMIZE # marks code that should be optimized before merging
+      - HACK # marks hack-arounds that should be removed before merging
+
+  gofmt:
+    simplify: true
+
+  goheader:
+
+  goimports:
+    local-prefixes: gitlab.com/pjrpc/pjrpc
+
+  golint:
+    min-confidence: 0.8
+
+  gomnd:
+    settings:
+      mnd:
+        checks: argument,case,condition,operation,return,assign
+
+  gomodguard:
+
+  govet:
+    check-shadowing: true
+    settings:
+      printf: # analyzer name, run `go tool vet help` to see all analyzers
+        funcs: # run `go tool vet help printf` to see available settings for `printf` analyzer
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+    enable:
+    enable-all: true
+    disable:
+      - fieldalignment
+    disable-all: false
+
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+    packages-with-error-message:
+
+  lll:
+    line-length: 250
+    tab-width: 1
+
+  maligned:
+    suggest-new: true
+
+  misspell:
+    locale: US
+    ignore-words:
+
+  nakedret:
+    max-func-lines: 30
+
+  prealloc:
+    simple: true
+    range-loops: true # Report preallocation suggestions on range loops, true by default
+    for-loops: true   # Report preallocation suggestions on for loops, false by default
+
+  nolintlint:
+    allow-unused: true
+    allow-leading-space: true
+    allow-no-explanation: []
+    require-explanation: true
+    require-specific: true
+
+  rowserrcheck:
+    packages:
+
+  testpackage:
+    skip-regexp: (export|internal)_test\.go
+
+  unparam:
+    check-exported: false
+
+  unused:
+    check-exported: false
+
+  gofumpt:
+    extra-rules: false
+
+  errorlint:
+    errorf: true
+
+linters:
+  enable:
+  enable-all: true
+  disable:
+    - interfacer
+    - funlen
+    - whitespace
+    - gochecknoglobals
+    - gochecknoinits
+    - wsl
+    - nlreturn
+    - exhaustivestruct
+    - exhaustruct
+    - varnamelen
+    - errname
+    - gomnd
+    - gci
+    - cyclop
+    - maligned
+    - nonamedreturns
+
+  disable-all: false
+  presets:
+  fast: false
+
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - forcetypeassert
+        - godot
+        - gosec
+
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  new: false
+  new-from-rev:
+  new-from-patch:

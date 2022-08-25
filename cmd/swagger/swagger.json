@@ -1,0 +1,368 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SeamlessV2Client",
+    "description": "SeamlessV2Client you can describe your service with methods.",
+    "version": "v0.0.0"
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/GetBalance": {
+      "post": {
+        "operationId": "GetBalance",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/types.GetBalanceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.GetBalanceResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_rpcError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/RollbackTransaction": {
+      "post": {
+        "operationId": "RollbackTransaction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/types.RollbackTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.RollbackTransactionResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_rpcError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/WithdrawAndDeposit": {
+      "post": {
+        "operationId": "WithdrawAndDeposit",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "#/components/schemas/types.WithdrawAndDepositRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/types.WithdrawAndDepositResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "JSON-RPC response body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_rpcError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "_rpcError": {
+        "title": "rpcError",
+        "description": "REQUIRED on error. This member MUST NOT exist if there was no error triggered during invocation.",
+        "type": "object",
+        "properties": {
+          "code": {
+            "description": "A Number that indicates the error type that occurred.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "message": {
+            "description": "A String providing a short description of the error.",
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/types.ErrorData"
+          }
+        }
+      },
+      "types.ErrorData": {
+        "description": "ErrorData used like rpc field error.data in response with error.\nIt will be showed in openapi spec if you passed it in service description.",
+        "type": "object",
+        "required": [
+          "client_message"
+        ],
+        "properties": {
+          "client_message": {
+            "type": "string"
+          }
+        }
+      },
+      "types.GetBalanceRequest": {
+        "type": "object",
+        "required": [
+          "callerId",
+          "playerName",
+          "currency",
+          "gameId",
+          "sessionId",
+          "sessionAlternativeId",
+          "bonusId"
+        ],
+        "properties": {
+          "callerId": {
+            "type": "integer",
+            "format": "int"
+          },
+          "playerName": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "sessionAlternativeId": {
+            "type": "string"
+          },
+          "bonusId": {
+            "type": "string"
+          }
+        }
+      },
+      "types.GetBalanceResponse": {
+        "type": "object",
+        "required": [
+          "balance",
+          "freeroundsLeft"
+        ],
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "format": "int"
+          },
+          "freeroundsLeft": {
+            "type": "integer",
+            "format": "int"
+          }
+        }
+      },
+      "types.Reason": {
+        "description": "* `GAME_PLAY` - \n* `GAME_PLAY_FINAL` - ",
+        "type": "string",
+        "enum": [
+          "GAME_PLAY",
+          "GAME_PLAY_FINAL"
+        ]
+      },
+      "types.RollbackTransactionRequest": {
+        "type": "object",
+        "required": [
+          "callerId",
+          "playerName",
+          "transactionRef",
+          "gameId",
+          "sessionId",
+          "sessionAlternativeId"
+        ],
+        "properties": {
+          "callerId": {
+            "type": "integer",
+            "format": "int"
+          },
+          "playerName": {
+            "type": "string"
+          },
+          "transactionRef": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "sessionAlternativeId": {
+            "type": "string"
+          }
+        }
+      },
+      "types.RollbackTransactionResponse": {
+        "type": "object"
+      },
+      "types.SpinDetails": {
+        "type": "object",
+        "required": [
+          "betType",
+          "winType"
+        ],
+        "properties": {
+          "betType": {
+            "type": "string"
+          },
+          "winType": {
+            "type": "string"
+          }
+        }
+      },
+      "types.WithdrawAndDepositRequest": {
+        "type": "object",
+        "required": [
+          "callerId",
+          "playerName",
+          "withdraw",
+          "deposit",
+          "currency",
+          "transactionRef",
+          "gameRoundRef",
+          "gameId",
+          "reason",
+          "sessionId",
+          "sessionAlternativeId",
+          "chargeFreerounds",
+          "bonusId",
+          "spinDetails"
+        ],
+        "properties": {
+          "callerId": {
+            "type": "integer",
+            "format": "int"
+          },
+          "playerName": {
+            "type": "string"
+          },
+          "withdraw": {
+            "type": "integer",
+            "format": "int"
+          },
+          "deposit": {
+            "type": "integer",
+            "format": "int"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "transactionRef": {
+            "type": "string"
+          },
+          "gameRoundRef": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/types.Reason"
+              }
+            ]
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "sessionAlternativeId": {
+            "type": "string"
+          },
+          "chargeFreerounds": {
+            "type": "integer",
+            "format": "int"
+          },
+          "bonusId": {
+            "type": "string"
+          },
+          "spinDetails": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/types.SpinDetails"
+              }
+            ]
+          }
+        }
+      },
+      "types.WithdrawAndDepositResponse": {
+        "type": "object",
+        "required": [
+          "newBalance",
+          "transactionId",
+          "freeroundsLeft"
+        ],
+        "properties": {
+          "newBalance": {
+            "type": "integer",
+            "format": "int"
+          },
+          "transactionId": {
+            "type": "string"
+          },
+          "freeroundsLeft": {
+            "type": "integer",
+            "format": "int"
+          }
+        }
+      }
+    }
+  }
+}

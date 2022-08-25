@@ -1,0 +1,23 @@
+image: golang:1.17-buster
+
+stages:
+  - new_code
+
+job_testing:
+  stage: new_code
+  tags:
+    - docker
+  coverage: '/^\d+.\d+%$/'
+  script:
+    - make test
+    - make coverage
+    - cp profile.cov coverage.txt
+    - bash <(curl -s https://codecov.io/bash) -t $CODECOV_TOKEN
+
+job_linters:
+  stage: new_code
+  tags:
+    - docker
+  image: golangci/golangci-lint:latest
+  script:
+    - make lints

@@ -1,0 +1,16 @@
+# coverage file
+/profile.cov
+/cmd/genpjrpc/profile.cov
+
+# generator bin
+/cmd/genpjrpc/genpjrpc
+
+# example bin
+/_examples/helloworld/cmd/client/client
+/_examples/helloworld/cmd/server/server
+/_examples/middlewares/cmd/client/client
+/_examples/middlewares/cmd/server/server
+/_examples/without-code-gen/without-code-gen
+/_examples/wasm/cmd/client/client
+/_examples/wasm/cmd/server/server
+/_examples/wasm/cmd/server/static/client.wasm

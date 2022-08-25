@@ -1,0 +1,4 @@
+github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
+github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+gitlab.com/pjrpc/pjrpc/v2 v2.1.0 h1:QGlGeC57Z1NPe3L42LTF/0gtcyUGyz+RsZYCoedNSak=
+gitlab.com/pjrpc/pjrpc/v2 v2.1.0/go.mod h1:VR0IlyDMu2jxZMVacovpDz6tAggvzB84i4U7LMwdoSs=
