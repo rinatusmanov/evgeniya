@@ -12,6 +12,6 @@ vendor:
 	go mod vendor
 
 generate:
-	cd model/seamlessv2 && go generate && cd ../../
+	cd togenerate && go generate && cd ..
 
 .PHONY: golangci vendor generate

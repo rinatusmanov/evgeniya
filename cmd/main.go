@@ -1,214 +1,98 @@
 package main
 
 import (
-	"embed"
+	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
+	"os"
+	"time"
 
-	"gitlab.com/pjrpc/pjrpc/v2/client"
+	"github.com/jmoiron/sqlx"
+	"github.com/opentracing/opentracing-go"
+	"github.com/prometheus/client_golang/prometheus"
+	jaegerCfg "github.com/uber/jaeger-client-go/config"
+	jaegerZap "github.com/uber/jaeger-client-go/log/zap"
+	jProm "github.com/uber/jaeger-lib/metrics/prometheus"
+	"gitlab.com/pjrpc/pjrpc/v2"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zapio"
 
-	"github.com/rinatusmanovjsonrpc20/internal/pkg/cashstore"
-	"github.com/rinatusmanovjsonrpc20/model/seamlessv2/rpcclient"
-	"github.com/rinatusmanovjsonrpc20/model/types"
+	_ "github.com/lib/pq"
+
+	"github.com/rinatusmanov/jsonrpc20/internal/pkg/seamlessv2"
+	"github.com/rinatusmanov/jsonrpc20/internal/pkg/seamlessv2/generated"
 )
 
-//go:embed swagger
-var swagger embed.FS
-
 func main() {
-	http.Handle("/swagger/", http.FileServer(http.FS(swagger)))
+	// инициализация логгера
+	atom := zap.NewAtomicLevel()
+	logger := zap.New(
+		zapcore.NewCore(
+			zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+			zapcore.Lock(os.Stdout),
+			atom,
+		),
+	).With(zap.String("service", "SeamlessV2ServiceServer"))
 
-	var (
-		invoker       client.Invoker
-		errNewInvoker error
-	)
+	atom.SetLevel(zap.InfoLevel)
 
-	if invoker, errNewInvoker = client.New("", nil); errNewInvoker != nil {
-		panic(errNewInvoker)
+	// инициализация клиента jaeger
+	cfg, errFromEnv := jaegerCfg.FromEnv()
+	if errFromEnv != nil {
+		logger.Panic("Could not parse Jaeger env vars", zap.Error(errFromEnv))
 	}
 
-	serviceClient := rpcclient.NewSeamlessV2ServiceClient(invoker)
-	rollbackTransactionStore := cashstore.NewCache()
-	withdrawAndDepositStore := cashstore.NewCache()
+	cfg.ServiceName = "SeamlessV2ServiceServer"
 
-	http.Handle("/GetBalance", getBalance(serviceClient))
-	http.Handle("/RollbackTransaction", rollbackTransaction(serviceClient, rollbackTransactionStore))
-	http.Handle("/WithdrawAndDeposit", withdrawAndDeposit(serviceClient, withdrawAndDepositStore))
+	factory := jProm.New(jProm.WithRegisterer(prometheus.NewPedanticRegistry()))
+
+	tracer, closer, errNewTracer := cfg.NewTracer(jaegerCfg.Metrics(factory))
+	if errFromEnv != nil {
+		logger.Panic("Could not parse Jaeger env vars", zap.Error(errNewTracer))
+	}
+
+	defer func() {
+		_ = closer.Close()
+	}()
+
+	opentracing.SetGlobalTracer(jaegerZap.NewLoggingTracer(logger, tracer))
+
+	srv := pjrpc.NewServerHTTP()
+	srv.SetLogger(&zapio.Writer{Log: logger, Level: zapcore.InfoLevel})
+
+	db, errOpen := sqlx.Open("postgres", os.Getenv("CONNECTION_STRING"))
+	if errOpen != nil {
+		logger.Panic("Could not open database", zap.Error(errOpen))
+	}
+
+	rpcService := seamlessv2.NewRPCService(db, logger)
+
+	generated.RegisterSeamlessV2ServiceServer(srv, rpcService, TraceMiddleWare)
+
+	http.Handle("/rpc/", srv)
 
 	if errListenAndServe := http.ListenAndServe(":8086", nil); errListenAndServe != nil {
 		panic(errListenAndServe)
 	}
 }
 
-func errorAnswer(w http.ResponseWriter, statusCode int, str string) {
-	errorRequest := types.ErrorData{ClientMessage: str}
+func TraceMiddleWare(next pjrpc.Handler) pjrpc.Handler {
+	return func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+		tracer := opentracing.GlobalTracer()
 
-	w.WriteHeader(statusCode)
+		span := tracer.StartSpan("RPCService.MiddleWare")
 
-	if errByteSlice, errErrorMarshal := json.Marshal(&errorRequest); errErrorMarshal == nil {
-		_, _ = w.Write(errByteSlice)
+		defer span.Finish()
+
+		now := time.Now()
+		res, err := next(opentracing.ContextWithSpan(ctx, span), params)
+		dur := time.Since(now).Seconds()
+
+		span.SetTag("duration", dur)
+		span.SetTag("error", err)
+		span.SetTag("result", res)
+
+		return res, err
 	}
-}
-
-func getBalance(serviceClient rpcclient.SeamlessV2ServiceClient) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		defer func() {
-			if err := recover(); err != nil {
-				errorAnswer(w, http.StatusInternalServerError, fmt.Sprint(err))
-			}
-		}()
-		if r.Method != http.MethodPost {
-			errorAnswer(w, http.StatusMethodNotAllowed, "Method not allowed")
-
-			return
-		}
-
-		byteSlice, errReadAll := io.ReadAll(r.Body)
-		if errReadAll != nil {
-			errorAnswer(w, http.StatusBadRequest, errReadAll.Error())
-
-			return
-		}
-		defer r.Body.Close()
-
-		var request types.GetBalanceRequest
-		if errUnmarshal := json.Unmarshal(byteSlice, &request); errUnmarshal != nil {
-			errorAnswer(w, http.StatusBadRequest, errUnmarshal.Error())
-
-			return
-		}
-
-		response, errResponse := serviceClient.GetBalance(r.Context(), &request)
-		if errResponse != nil {
-			errorAnswer(w, http.StatusInternalServerError, errResponse.Error())
-
-			return
-		}
-
-		answerByteSlice, errMarshal := json.Marshal(response)
-		if errMarshal != nil {
-			errorAnswer(w, http.StatusInternalServerError, errMarshal.Error())
-
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(answerByteSlice)
-	})
-}
-
-func rollbackTransaction(serviceClient rpcclient.SeamlessV2ServiceClient, cache cashstore.Cache) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		defer func() {
-			if err := recover(); err != nil {
-				errorAnswer(w, http.StatusInternalServerError, fmt.Sprint(err))
-			}
-		}()
-		if r.Method != http.MethodPost {
-			errorAnswer(w, http.StatusInternalServerError, "Method not allowed")
-
-			return
-		}
-
-		byteSlice, errReadAll := io.ReadAll(r.Body)
-		if errReadAll != nil {
-			errorAnswer(w, http.StatusBadRequest, errReadAll.Error())
-
-			return
-		}
-		defer r.Body.Close()
-
-		var request types.RollbackTransactionRequest
-		if errUnmarshal := json.Unmarshal(byteSlice, &request); errUnmarshal != nil {
-			errorAnswer(w, http.StatusBadRequest, errUnmarshal.Error())
-
-			return
-		}
-
-		if cache.Check(request.TransactionRef) {
-			errorAnswer(w, http.StatusBadRequest, "Transaction already exists")
-
-			return
-		}
-
-		cache.Cache(request.TransactionRef)
-
-		response, errResponse := serviceClient.RollbackTransaction(r.Context(), &request)
-		if errResponse != nil {
-			errorAnswer(w, http.StatusInternalServerError, errResponse.Error())
-
-			return
-		}
-
-		answerByteSlice, errMarshal := json.Marshal(response)
-		if errMarshal != nil {
-			errorAnswer(w, http.StatusInternalServerError, errMarshal.Error())
-
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(answerByteSlice)
-	})
-}
-
-func withdrawAndDeposit(serviceClient rpcclient.SeamlessV2ServiceClient, cache cashstore.Cache) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		defer func() {
-			if err := recover(); err != nil {
-				errorAnswer(w, http.StatusInternalServerError, fmt.Sprint(err))
-			}
-		}()
-
-		if r.Method != http.MethodPost {
-			errorAnswer(w, http.StatusInternalServerError, "Method not allowed")
-
-			return
-		}
-
-		byteSlice, errReadAll := io.ReadAll(r.Body)
-		if errReadAll != nil {
-			errorAnswer(w, http.StatusBadRequest, errReadAll.Error())
-
-			return
-		}
-		defer r.Body.Close()
-
-		var request types.WithdrawAndDepositRequest
-		if errUnmarshal := json.Unmarshal(byteSlice, &request); errUnmarshal != nil {
-			errorAnswer(w, http.StatusBadRequest, errUnmarshal.Error())
-
-			return
-		}
-
-		if cache.Check(request.TransactionRef) {
-			errorAnswer(w, http.StatusBadRequest, "Transaction already exists")
-
-			return
-		}
-
-		cache.Cache(request.TransactionRef)
-
-		response, errResponse := serviceClient.WithdrawAndDeposit(r.Context(), &request)
-		if errResponse != nil {
-			errorAnswer(w, http.StatusInternalServerError, errResponse.Error())
-
-			return
-		}
-
-		answerByteSlice, errMarshal := json.Marshal(response)
-		if errMarshal != nil {
-			errorAnswer(w, http.StatusInternalServerError, errMarshal.Error())
-
-			return
-		}
-
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(answerByteSlice)
-	})
 }

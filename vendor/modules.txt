@@ -1,9 +1,0 @@
-# github.com/google/uuid v1.3.0
-## explicit
-github.com/google/uuid
-# gitlab.com/pjrpc/pjrpc/v2 v2.1.0
-## explicit; go 1.17
-gitlab.com/pjrpc/pjrpc/v2
-gitlab.com/pjrpc/pjrpc/v2/client
-gitlab.com/pjrpc/pjrpc/v2/pjson
-gitlab.com/pjrpc/pjrpc/v2/storage
